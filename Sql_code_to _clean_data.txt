@@ -1,0 +1,1179 @@
+use kunal
+
+-- create and load table of customers 
+create table CUSTOMERS ( 
+customer_id varchar(50) primary key,
+customer_unique_id varchar(50) not null,
+customer_zip_code_prefix  int not null,
+customer_city varchar(40),
+customer_state varchar(20)
+)
+
+
+load data infile 
+"K:/CUSTOMERS.csv"
+into table CUSTOMERS
+fields terminated by ','
+enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows 
+
+select * from customers
+
+-- to check null values in the table
+select * from customers
+where customer_id is null
+or customer_unique_id is null
+or customer_zip_code_prefix is null
+or customer_city is null
+or customer_state is null
+
+-- to delete all the rows which have null values 
+delete from customers
+where customer_id is null
+or customer_unique_id is null
+or customer_zip_code_prefix is null
+or customer_city is null
+or customer_state is null
+
+-- To find duplicate rows in customers table
+select 
+ customer_id ,
+ customer_unique_id ,
+ customer_city ,
+ customer_state ,
+ count(*)
+from customers
+group by 
+  customer_id ,
+  customer_unique_id ,
+  customer_city ,
+  customer_state 
+having count(*) > 1 -- there are no duplicate rows
+
+-- To remove unwanted leading and trailing spaces from all the columns in customers
+
+   
+update customers
+set
+   customer_id = trim(customer_id),
+   customer_unique_id = trim(customer_id),
+   customer_zip_code_prefix = trim(customer_zip_code_prefix),
+   customer_city = trim(customer_city),
+   customer_state = trim(customer_state);
+
+-- To check city names with high charater length
+
+select customer_city , customer_state from customers
+where length(customer_city)>30
+
+select customer_city , customer_state from customers
+where length(customer_city)>35
+   
+-- To correct the city name "Ramachandrapuram-Bhel Township )"
+   
+select replace(customer_city, 'Ramachandrapuram-Bhel Township )','Ramachandrapuram (Bhel Township)') from customers 
+where customer_city like 'Ramachandrapuram-Bhel Township )';
+
+update customers 
+set customer_city = replace(customer_city, 'Ramachandrapuram-Bhel Township )','Ramachandrapuram (Bhel Township)')
+where customer_city like 'Ramachandrapuram-Bhel Township )';
+
+select customer_city , customer_state from customers
+where customer_city like 'Ramachandrapuram-Bhel Township )'; -- corrected city name
+
+-- To check if all the customer_id's are unique
+select count(*) , count(distinct customer_id) from customers
+
+-- To check distinct state values in customer_state column
+
+select distinct customer_state from customers
+
+-- To replace Uttaranchal with Uttarakhand in customers table
+
+select * from customers
+where customer_state like '%Uttaranchal%'
+
+update customers
+set
+   customer_state = replace(customer_state, 'Uttaranchal','Uttarakhand')
+   
+
+
+-- create and load data of orders
+
+create table ORDERS (
+order_id varchar(50) primary key,
+customer_id varchar(40),
+order_status varchar(20),
+order_purchase_timestamp text,
+order_approved_at text,
+order_delivered_carrier_date text,
+order_delivered_customer_date text,
+order_estimated_delivery_date text,
+foreign key (customer_id) references customers(customer_id)
+)
+
+load data infile 
+"K:/ORDERS.csv"
+into table ORDERS
+fields terminated by ','
+enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows 
+
+select * from orders
+
+-- converting string datetime values in datetime vales
+update orders
+set
+order_purchase_timestamp = str_to_date(order_purchase_timestamp,'%m/%d/%Y %H:%i'),
+order_approved_at = str_to_date(order_approved_at,'%m/%d/%Y %H:%i'),
+order_delivered_carrier_date = str_to_date(order_delivered_carrier_date,'%m/%d/%Y %H:%i'),
+order_delivered_customer_date = str_to_date(order_delivered_customer_date,'%m/%d/%Y %H:%i'),
+order_estimated_delivery_date = str_to_date(order_estimated_delivery_date,'%m/%d/%Y %H:%i')
+
+/*    Now to convert datetime values in dd-mm-yyyy from mm-dd-yyyy
+      I have removed the timestamp in order_estimated_delivery_date 
+      becaue all timestamp was in 00:00 format 
+*/
+
+UPDATE orders
+SET 
+    order_purchase_timestamp = DATE_FORMAT(order_purchase_timestamp, '%d-%m-%Y %H:%i'),
+    order_approved_at = DATE_FORMAT(order_approved_at, '%d-%m-%Y %H:%i'),
+    order_delivered_carrier_date = DATE_FORMAT(order_delivered_carrier_date, '%d-%m-%Y %H:%i'),
+    order_delivered_customer_date = DATE_FORMAT(order_delivered_customer_date, '%d-%m-%Y %H:%i'),
+    order_estimated_delivery_date = DATE_FORMAT(order_estimated_delivery_date, '%d-%m-%Y');
+
+select distinct order_status from orders 
+
+/* We have only one order status from order_status column
+   that is delivered. So we don't need this column as for now. 
+*/
+
+-- To delete the order_status column from out table orders 
+alter table orders
+drop column order_status;
+
+select * from orders;
+
+
+select * from customers
+where customer_id not in (select customer_id from orders);
+
+select count( distinct customer_id) from customers
+where customer_id not in (select customer_id from orders);
+
+
+/*  According to the above code there are 2986 distinct cusotmer_id 
+    which are not present in orders table 
+    Therefore there are 2986 customers which have not ordered any thing 
+*/
+
+-- To find duplicate rows in the orders table 
+
+SELECT 
+    order_id,
+    customer_id,
+    order_purchase_timestamp,
+    order_approved_at,
+    order_delivered_carrier_date,
+    order_delivered_customer_date,
+    order_estimated_delivery_date,
+    COUNT(*) AS duplicate_count
+FROM 
+    orders 
+GROUP BY 
+    order_id,
+    customer_id,
+    order_purchase_timestamp,
+    order_approved_at,
+    order_delivered_carrier_date,
+    order_delivered_customer_date,
+    order_estimated_delivery_date
+HAVING 
+    COUNT(*) > 1; -- there are no duplicate rows
+    
+    
+-- to check null values in the table
+select * from orders
+where order_id is null
+or customer_id is null
+or order_purchase_timestamp is null
+or order_approved_at is null
+or order_delivered_carrier_date is null
+or order_delivered_customer_date is null
+or order_estimated_delivery_date is null -- There are no null values in orders table
+
+
+-- To remove unwanted leading and trailing spaces from all the columns in orders
+
+update orders
+set
+	order_id =  trim(order_id),
+    customer_id =  trim(customer_id),
+    order_purchase_timestamp =  trim(order_purchase_timestamp),
+    order_approved_at =  trim(order_approved_at),
+    order_delivered_carrier_date =  trim(order_delivered_carrier_date),
+    order_delivered_customer_date =  trim(order_delivered_customer_date),
+    order_estimated_delivery_date =  trim(order_estimated_delivery_date);
+    
+    select * from orders
+
+-- Now creating table sellers and loading its data 
+
+create table sellers (
+ seller_id varchar(40) primary key,
+ seller_zip_code_prefix int,
+ seller_city varchar(40),
+ seller_state varchar(40)
+)
+    
+load data infile
+"K:/SELLERS.csv"
+into table SELLERS	
+fields terminated by ','
+enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows
+
+select * from sellers
+
+-- To remove unwanted leading and trailing spaces from all the columns in sellers table
+
+update sellers
+set
+   seller_id = trim(seller_id),
+   seller_zip_code_prefix = trim(seller_zip_code_prefix),
+   seller_city = trim(seller_city),
+   seller_state = trim(seller_state);
+ 
+ -- to find duplicate rows in sellers data
+ 
+select seller_id,seller_zip_code_prefix,seller_city,seller_state,count(*)
+from sellers
+group by seller_id,seller_zip_code_prefix,seller_city,seller_state
+having count(*)>1
+
+-- to find null values in sellers table
+
+select * from sellers
+where seller_id is null
+or seller_zip_code_prefix is null
+or seller_city is null
+or seller_state is null;
+
+-- Found worng seller_city values
+select count(*) from sellers 
+where seller_city like "%#N/A%" -- 57
+
+select count(*) from sellers 
+where seller_state like "#N/A%" -- 57
+
+/* the above wrong seller city and state values can be 
+   replaced with correct values with the help of geo_location table
+*/
+
+-- To get distinct name of the state in sellers table
+
+select distinct seller_state from sellers
+
+-- To replace Uttaranchal with Uttarakhand in seller_state column 
+
+select * from sellers
+where seller_state like "%Uttaranchal%"
+
+update sellers
+set
+   seller_state = replace(seller_state,"Uttaranchal","Uttarakhand")
+   
+create table GEO_LOCATION (
+geolocation_zip_code_prefix int primary key,
+geolocation_lat double,
+geolocation_lng double,
+geolocation_city varchar(40),
+geolocation_state varchar(20)
+)
+drop table geo_location 
+
+load data infile
+"K:/GEO_LOCATION.csv"
+into table GEO_LOCATION
+fields terminated by ','
+enclosed by '"' 
+lines terminated by '\n'
+ignore 1 rows
+   
+select * from geo_location
+
+-- To remove leading and trailing spaces in all the columns in geo_location table
+
+update geo_location
+set
+   geolocation_zip_code_prefix = trim(geolocation_zip_code_prefix),
+   geolocation_lat = trim(geolocation_lat),
+   geolocation_lng =  trim(geolocation_lng),
+   geolocation_city = trim(geolocation_city),
+   geolocation_state = trim(geolocation_state)
+
+-- To check duplicate rows in geo_location table
+
+select geolocation_zip_code_prefix,
+geolocation_lat,
+geolocation_lng,
+geolocation_city,
+geolocation_state,
+count(*)
+from geo_location
+group by 
+geolocation_zip_code_prefix,
+geolocation_lat,
+geolocation_lng,
+geolocation_city,
+geolocation_state
+having count(*) > 1;  -- no duplicate rows
+
+/* I have checked some of the latitude and longitude 
+   All the latitude and longitudes are of location in Brazil, indonesia and europe
+   So geolocation_lat and geolocation_lng columns are wrong 
+   so I am deleting them from geo_location table
+*/
+
+-- Delete geolocation_lat and geolocation_lng columns from geo_location
+alter table geo_location
+drop column geolocation_lat,
+drop column geolocation_lng
+
+
+/*  Now we can replace the #N/A value in seller_city and seller_state column from sellers table with correct values
+    I have used zip code prefix in geo_location table to replace correct city and state values in sellers
+*/ 
+
+select * from geo_location
+select * from sellers
+where seller_state like '%#N/A%'
+
+/*   To find the wrong state and city values in seller and 
+	 comparing correct zip values with geo_location zip values
+*/
+-- total 57 rows were there with wrong city and state values in sellers table
+
+select sellers.seller_zip_code_prefix,
+geo_location.geolocation_zip_code_prefix,
+geo_location.geolocation_city,
+sellers.seller_city,
+geo_location.geolocation_state,
+sellers.seller_state
+from sellers
+join geo_location
+on sellers.seller_zip_code_prefix = geo_location.geolocation_zip_code_prefix
+where seller_city like '%#N/A%'
+
+-- To place the correct values of city and state in sellers table from geo_location table
+
+update sellers
+join geo_location
+on sellers.seller_zip_code_prefix = geo_location.geolocation_zip_code_prefix
+ set sellers.seller_city =  case 
+                               when sellers.seller_city like '%#N/A%'
+                               then geo_location.geolocation_city
+                               else sellers.seller_city
+							end,
+	sellers.seller_state = case 
+                               when sellers.seller_state like '%#N/A%'
+                               then geo_location.geolocation_state
+                               else sellers.seller_state
+							end
+where seller_city like '%#N/A%'
+or seller_state like '%#N/A%'; 
+ 
+
+
+-- To check if we have placed correct values 
+ 
+select * from sellers
+where seller_city like '%#N/A%'
+or seller_state like '%#N/A%' -- No #n/a values found
+ 
+ 
+select * from orders
+
+-- To create products table and import data from local storage
+
+create table PRODUCTS (
+product_id varchar(40) primary key,
+product_category_name varchar(40),
+product_name_lenght int,
+product_description_lenght int,
+product_photos_qty int,
+product_weight_g int,
+product_length_cm int,
+product_height_cm int,
+product_width_cm int
+);
+
+load data infile
+"K:/PRODUCTS.csv"
+into table PRODUCTS
+fields terminated by ','
+Enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows
+ 
+ select * from PRODUCTS
+ 
+ -- To remove leading and trailing spaces in all columns in products table
+ 
+ update products
+ set 
+    product_id = Trim(product_id),
+    product_category_name = Trim(product_category_name),
+    product_name_lenght = Trim(product_name_lenght),
+    product_description_lenght = Trim(product_description_lenght),
+    product_photos_qty = Trim(product_photos_qty),
+    product_weight_g = Trim(product_weight_g ),
+    product_length_cm = Trim(product_length_cm),
+    product_height_cm = Trim(product_height_cm),
+    product_width_cm = Trim(product_width_cm);
+    
+
+-- To replace '_' from catogorical values in products categories to a space 
+
+select product_category_name,replace(product_category_name,'_',' ') from products 
+
+update products
+set product_category_name = replace(product_category_name,'_',' ')
+
+select * from products;
+
+-- To find duplicate rows in PRODUCTS table
+
+select product_id ,
+product_category_name ,
+product_name_lenght ,
+product_description_lenght ,
+product_photos_qty ,
+product_weight_g ,
+product_length_cm ,
+product_height_cm ,
+product_width_cm,
+count(*)
+from products
+group by product_id ,
+product_category_name ,
+product_name_lenght ,
+product_description_lenght ,
+product_photos_qty ,
+product_weight_g ,
+product_length_cm ,
+product_height_cm ,
+product_width_cm
+having count(*)>1 -- no duplicate rows
+
+create table ORDER_ITEMS (
+order_id varchar(40),
+order_item_id varchar(40),
+product_id varchar(40),
+seller_id varchar(40),
+shipping_limit_date text,
+price float,
+freight_value varchar(20)
+);
+
+load data infile
+"K:/ORDER_ITEMS.csv"
+into table order_items
+fields terminated by ','
+Enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows
+
+select * from order_items
+
+update order_items
+set
+order_id = Trim(order_id),
+order_item_id = Trim(order_item_id),
+product_id = Trim(product_id),
+seller_id = Trim(seller_id),
+shipping_limit_date = Trim(shipping_limit_date),
+price = Trim(price),
+freight_value = Trim(freight_value);
+
+/*  Can't add foregin key constarint in order_items table due to error code :1452
+    Error states that I have some values in order_id column in order_items table which
+    are not presrent in order_id column in orders table, which means I have extra order_id's
+    in order_items table. 
+    
+    To solve this error either I have to delete the extar order_id's in order_items 
+    or add data of that extar order_id's in orders table.
+    
+    We will find what extar values we have in order_items that is needed or not
+
+*/
+-- To find how many extra order_id's are in order_items table
+
+select count(distinct order_id) from orders -- 96455
+select count(distinct order_id) from order_items -- 98666
+
+-- Total extra order_id's present in order_item table are (98666-96455) = 2211
+
+/* We will convert shipping_limit_date values from str to datetime
+   because I imported shipping_limit_date values in text
+*/
+
+-- Creating a column name shipping_limit_datetime to store datetime values in datetime format
+
+alter table order_items
+add column shipping_limit_datetime datetime;
+
+-- converting the text values to datetime values and storing new datetime values in new the new column
+
+update order_items
+set shipping_limit_datetime = str_to_date(shipping_limit_date,'%m/%d/%Y %H:%i');
+
+-- I wanted to place shipping_limit_datetime column right side of seller_id column
+
+alter table order_items
+modify column shipping_limit_datetime datetime after seller_id;
+
+-- Now I don't want shipping_limit_date column in my table
+
+alter table order_items
+drop column shipping_limit_date
+
+-- To check my results
+select * from order_items
+
+-- Now I want to extract year from the shipping_limit_datetime column
+-- First we will create new column for year column
+alter table order_items
+add column shipping_year year;
+
+update order_items
+set shipping_year = year(shipping_limit_datetime);
+
+select distinct shipping_year from order_items
+
+-- our data should contain data form the year from sept 2016 ,2017 to 2018 oct
+
+select * from order_items
+where shipping_year <> 2016
+and  shipping_year <> 2017
+and  shipping_year <> 2018; -- our data has data from the year 2020 also 
+
+
+-- To get the order_id's that are not present in orders table
+
+select ot.order_id
+from order_items as ot
+left join orders as od 
+on ot.order_id = od.order_id
+where od.order_id is null;
+
+select ot.order_id,shipping_limit_datetime,shipping_year
+from order_items as ot
+left join orders as od 
+on ot.order_id = od.order_id
+where od.order_id is null;
+
+-- To check some of the order_id values we got from above code that are there in orders table or not
+-- Its is just to make sure that the above code gives correct order_id's that are not present in orders table
+	
+select * from orders
+where order_id = '002f19a65a2ddd70a090297872e6d64e'
+or order_id = '00310b0c75bb13015ec4d82d341865a4'
+or order_id = '00a99c50fdff7e36262caba33821875a'
+or order_id = '00ae7a8b4936674ebb701d4a23719a79'
+or order_id = '00ff0cf5583758e6964723e42f111bf4'
+or order_id = '013e9c654a339d80b53513da3c1ea437'
+or order_id = '01443cd06ea8bce82c554a46f307459f'
+or order_id = '0148d3df00cebda592d4e5f966e300cc'
+or order_id = '0148d3df00cebda592d4e5f966e300cc'
+or order_id = '0148d3df00cebda592d4e5f966e300cc'
+or order_id = '0148d3df00cebda592d4e5f966e300cc'
+or order_id = '0148d3df00cebda592d4e5f966e300cc'; -- no order_id's mentioned in this code are present in orders table
+
+-- To count distinct order_id's that we do not want in order_items 
+
+select count(distinct ot.order_id)
+from order_items as ot
+left join orders as od 
+on ot.order_id = od.order_id
+where od.order_id is null; -- 2211
+
+/*   As I have mentioned in code line 528 that
+     there are 2211 extra order_id's in order_items table
+     which matches the above code result
+*/
+
+-- Now to delete all the extra order_id's that are present in order_item table
+
+select count(*) from order_items -- 112650
+
+select count(ot.order_id)
+from order_items as ot
+left join orders as od 
+on ot.order_id = od.order_id
+where od.order_id is null; -- 2477 (count of unwanted rows)
+
+-- 112650 - 2477 = 1,10,173
+
+select count(ot.order_id)
+from order_items as ot
+left join orders as od 
+on ot.order_id = od.order_id
+where od.order_id is not null -- 110173 (count of wanted rows )
+
+
+delete from order_items
+where order_id not in (select order_id from orders);
+
+select count(*) from order_items --  after deleting all the unwanted rows we get total 110173 rows, which is correct
+
+-- Now we also want to check extra product_id's and seller_id's in order_items table 
+
+-- To check how many total extra product_id's are there in order_items table that are not present in products table
+
+select ot.product_id from order_items as ot
+left join products as pd
+on ot.product_id = pd.product_id
+where pd.product_id is null
+
+-- Row count of extra product_ids
+
+select count(ot.product_id) 
+from order_items as ot
+left join products as pd
+on ot.product_id = pd.product_id
+where pd.product_id is null -- 1559
+
+-- distinct count of extra product_ids
+
+select count(distinct ot.product_id) 
+from order_items as ot
+left join products as pd
+on ot.product_id = pd.product_id
+where pd.product_id is null -- 596
+
+-- To delete extra product_id's in order_items table
+
+delete from order_items
+where product_id not in (select product_id from products);
+
+-- We can do same for the seller_id's in order_items table
+
+delete from order_items
+where seller_id not in (select seller_id from sellers);
+
+--  after deleting extar seller_id's , product_id's and order_id's the total rows which are left in order_items are
+
+select count(*) from order_items -- 108614
+
+-- so from total of 112650 rows in order_items we are now with 108614 rows of data in order_items
+
+-- Now we can add all the foreign key constraints in order_items table
+
+alter table order_items 
+add foreign key  fk_order_id (order_id) references orders(order_id),
+add foreign key  fk_customer_id (product_id) references products(product_id),
+add foreign key  fk_seller_id (seller_id) references sellers(seller_id);
+
+select * from order_items
+where shipping_year = 2020
+
+-- To check if we have duplicate rows in our table orders_items
+
+select order_id,
+product_id,
+seller_id,
+shipping_limit_datetime,
+price,
+freight_value,
+count(*)
+from order_items
+group by order_id,
+product_id,
+seller_id,
+shipping_limit_datetime,
+price,
+freight_value
+having count(*) > 1 -- no duplicate rows
+
+/* Creating a unique identifier column in order_items 
+   because in table order_items I have repeated order_id and order_item_id
+   After creating a unique identifier then I can make it a primary key column of order_items table
+   to make a identifier it will concatenate both the order_id and order_item_id columns for each row
+ */
+ 
+ 
+-- To check that will I get duplicate rows for order_id and order_item_id 
+
+select order_id, order_item_id, count(*)
+from order_items
+group by order_id, order_item_id
+having count(*)>1 -- no duplicates found
+
+-- To create a column that will contain unique identifier
+
+alter table order_items
+add column order_item_key varchar(50);
+
+-- Adding values to the new column order_item_key which will act as primary key
+
+update order_items
+set order_item_key = concat(order_id,order_item_id)
+
+-- Now lets check do we get duplicate rows for the new column we created
+
+select order_item_key,count(*) from order_items
+group by order_item_key
+having count(*) > 1 -- no duplicates
+
+-- now we can add a primary key constraint in order_items table
+
+alter table order_items
+add primary key (order_item_key)
+
+-- to check that order_item_key is the primary key of the order_items table
+
+desc order_items -- it shows PRI at key, so order_item_key is the primary key column of order_items table
+
+-- To create order_payments table and load csv file for the data
+
+create table ORDER_PAYMENTS (
+order_id varchar(40),
+payment_sequential int,
+payment_type varchar(15),
+payment_installments int,
+payment_value varchar(10)
+);
+
+drop table ORDER_PAYMENTS
+
+load data infile
+"K:/ORDER_PAYMENTS.csv"
+into table ORDER_PAYMENTS
+fields terminated by ','
+lines terminated by '\n'
+ignore 1 rows;
+
+select * from ORDER_PAYMENTS
+
+-- To remove unwanted leading and trailing spaces from all the columns in order_payments
+
+update order_payments
+set 
+   order_id = Trim(order_id),
+   payment_sequential = Trim(payment_sequential),
+   payment_type = Trim(payment_type),
+   payment_installments = Trim(payment_installments),
+   payment_value = Trim(payment_value) 
+   
+-- To check for duplicate rows in order_payments table
+   
+select order_id ,
+payment_sequential ,
+payment_type ,
+payment_installments ,
+payment_value ,
+count(*)
+from order_payments
+group by order_id ,
+payment_sequential ,
+payment_type ,
+payment_installments ,
+payment_value
+having count(*) > 1 -- No duplicate rows found
+
+/*   I tried to apply foreign key constraint in order_payments table but its showed error code :1452
+     which was showing same for table order_items 
+     so we can perform same steps as we did for order_items table to resolve this error
+*/
+
+-- to know how many extra order_id's we have in order_payments table
+
+select op.order_id
+from order_payments as op
+left join orders as od
+on op.order_id = od.order_id
+where od.order_id is null
+
+select count(op.order_id)
+from order_payments as op
+left join orders as od
+on op.order_id = od.order_id
+where od.order_id is null -- 3153 (count of rows which have extar order_id)
+
+
+select count(distinct op.order_id)
+from order_payments as op
+left join orders as od
+on op.order_id = od.order_id
+where od.order_id is null -- 2986
+
+-- To delete all the rows which have extra order_id which we don't need
+
+delete from order_payments
+where order_id not in (select order_id from orders);
+
+alter table order_payments
+add foreign key fk_order_id_order_payments (order_id) references orders(order_id)
+
+select * from order_payments
+
+-- to check if we have unique identifier for each row
+
+select count(*) from order_payments -- 100733
+select count(distinct order_id) from order_payments -- 96454 
+
+/* From the above code we get that there are no unique identifier for each row 
+   So lets concatenate some of the column values to genrate unique identifier for each row 
+*/ 
+
+-- To find best suited columns to concatenate to genrate unique identifier for each row
+
+select order_id,payment_type,payment_sequential,count(*)
+from order_payments
+group by order_id,payment_type,payment_sequential
+having count(*)>1
+
+-- Now lets create a new column and add unique identifier values in it
+
+alter table order_payments
+add column order_payments_key varchar(50);
+
+update order_payments
+set order_payments_key = concat(order_id,payment_type,payment_sequential);
+
+-- now lets check that our new column values are actually unique identifier for each rows
+
+select count(*),count(order_payments_key) from order_payments
+
+-- To make the order_payments_key as primary key
+
+alter table order_payments
+add primary key (order_payments_key)
+
+-- now lets check if order_payments_key is the primary key
+
+desc order_payments
+
+select * from order_payments
+
+-- To create ORDER_REVIEW_RATINGS table and load the csv file to get the data
+
+create table ORDER_REVIEW_RATINGS (
+review_id varchar(40),
+order_id varchar(40),
+review_score int,
+review_creation_date varchar(20),
+review_answer_timestamp varchar(20)
+);
+
+drop table ORDER_REVIEW_RATINGS 
+
+load data infile
+"K:/ORDER_REVIEW_RATINGS.csv"
+into table ORDER_REVIEW_RATINGS 
+fields terminated by ','
+enclosed by '"'
+lines terminated by '\n'
+ignore 1 rows
+
+-- convert string datatime values to datetime format
+
+update order_review_ratings
+set 
+   review_creation_date = str_to_date(review_creation_date,'%m/%d/%Y %H:%i'),
+   review_answer_timestamp = str_to_date(review_answer_timestamp,'%m/%d/%Y %H:%i');
+   
+-- In column review_creation_date we don't have hours and min values so we can remove the timestamp
+
+select review_creation_date,date_format(review_creation_date,'%m-%d-%Y'), 
+date_format(review_answer_timestamp,'%m-%d-%Y %H:%i')
+from order_review_ratings
+
+update order_review_ratings
+set 
+   review_creation_date = date_format(review_creation_date,'%m-%d-%Y'),
+   review_answer_timestamp = date_format(review_answer_timestamp,'%m-%d-%Y %H:%i');
+   
+   select * from order_review_ratings
+   
+   
+select orr.order_id
+from order_review_ratings as orr
+left join orders as od
+on orr.order_id = od.order_id
+where od.order_id is null
+
+select count(orr.order_id)
+from order_review_ratings as orr
+left join orders as od
+on orr.order_id = od.order_id
+where od.order_id is null
+
+-- to remove extra order_ids from order_review_ratings table 
+
+delete from order_review_ratings
+where order_id not in (select order_id from orders);
+
+-- Now to add foreign key constraint in order_review_ratings table
+
+alter table order_review_ratings
+add foreign key fk_order_review_ratings (order_id) references orders(order_id);
+
+-- to check if the table has a unique identifier column for primary key
+
+select count(*),count(distinct order_id) from order_review_ratings
+
+select review_id ,review_score,count(*)
+from order_review_ratings
+group by review_id,review_score
+having count(*) > 1
+
+select row_num , count(*)
+from (
+select row_number() over(order by order_id) as row_num,order_id,review_id ,review_score
+from order_review_ratings) as x
+group by row_num
+having count(*) > 1
+
+alter table order_review_ratings
+add column review_ratings_id int;
+
+
+select * from order_review_ratings
+order by review_ratings_id 
+
+-- To add review_ratings_id column as primary key
+
+alter table order_review_ratings
+add primary key (review_ratings_id)
+
+-- To check that primary key is add to the table 
+
+desc order_review_ratings 
+
+/* Why I have not taken review_id as primary key?
+   It beacuse there are duplicate review_ids used in many rows 
+   so review_id is not an unique identifier for each row in order_review_ratings table
+*/
+
+select * from order_review_ratings
+
+select od.order_id,
+od.customer_id,
+od.order_purchase_timestamp,
+od.order_approved_at,
+od.order_delivered_carrier_date,
+od.order_delivered_customer_date,
+od.order_estimated_delivery_date,
+pd.product_id,
+pd.product_category_name,
+cust.customer_city,
+cust.customer_state,
+sl.seller_id,
+sl.seller_city,
+sl.seller_state,
+ot.shipping_limit_datetime,
+ot.shipping_year,
+ot.price,
+ot.freight_value,
+op.payment_sequential,
+op.payment_type,
+op.payment_installments,
+op.payment_value,
+orat.review_id,
+orat.review_score,
+orat.review_creation_date,
+orat.review_answer_timestamp
+from orders as od
+join order_payments as op
+on od.order_id = op.order_id
+join order_items as ot
+on od.order_id = ot.order_id
+join sellers as sl
+on sl.seller_id = ot.seller_id
+join products as pd
+on pd.product_id = ot.product_id
+join customers as cust
+on cust.customer_id = od.customer_id
+join order_review_ratings as orat
+on orat.order_id = od.order_id
+
+select * from orders
+select * from order_items
+select * from customers
+select * from order_review_ratings
+select * from sellers
+select * from products
+select * from order_payments
+
+select user();
+
+select host,user from mysql.user;
+
+show variables
+where variable_name = 'port';
+show variables
+where variable_name = 'hostname';
+
+show variables
+where variable_name like 'server_address';
+
+
+select count(*)
+from
+(select od.order_id,
+od.customer_id,
+od.order_purchase_timestamp,
+od.order_approved_at,
+od.order_delivered_carrier_date,
+od.order_delivered_customer_date,
+od.order_estimated_delivery_date,
+pd.product_id,
+pd.product_category_name,
+cust.customer_city,
+cust.customer_state,
+sl.seller_id,
+sl.seller_city,
+sl.seller_state,
+ot.shipping_limit_datetime,
+ot.shipping_year,
+ot.price,
+ot.freight_value,
+op.payment_sequential,
+op.payment_type,
+op.payment_installments,
+op.payment_value,
+orat.review_id,
+orat.review_score,
+orat.review_creation_date,
+orat.review_answer_timestamp
+from orders as od
+join order_payments as op
+on od.order_id = op.order_id
+join order_items as ot
+on od.order_id = ot.order_id
+join sellers as sl
+on sl.seller_id = ot.seller_id
+join products as pd
+on pd.product_id = ot.product_id
+join customers as cust
+on cust.customer_id = od.customer_id
+join order_review_ratings as orat
+on orat.order_id = od.order_id) as c -- 114043
+
+
+
+select od.order_id,
+od.customer_id,
+od.order_purchase_timestamp,
+od.order_approved_at,
+od.order_delivered_carrier_date,
+od.order_delivered_customer_date,
+od.order_estimated_delivery_date,
+pd.product_id,
+pd.product_category_name,
+cust.customer_city,
+cust.customer_state,
+sl.seller_id,
+sl.seller_city,
+sl.seller_state,
+ot.shipping_limit_datetime,
+ot.shipping_year,
+ot.price,
+ot.freight_value,
+op.payment_sequential,
+op.payment_type,
+op.payment_installments,
+op.payment_value,
+orat.review_id,
+orat.review_score,
+orat.review_creation_date,
+orat.review_answer_timestamp
+from orders as od
+left join order_payments as op on od.order_id = op.order_id
+left join order_items as ot on od.order_id = ot.order_id
+inner join sellers as sl on sl.seller_id = ot.seller_id
+inner join products as pd on pd.product_id = ot.product_id
+inner join customers as cust on cust.customer_id = od.customer_id
+inner join order_review_ratings as orat on orat.order_id = od.order_id  -- 114046
+
+select count(distinct order_id) from orders -- 96455
+select count(distinct order_id) from order_payments -- 96454
+
+select order_id from orders
+where order_id not in (select order_id from order_payments)
+
+
+select count(distinct order_id) from orders -- 96455
+select count(distinct order_id) from order_items -- 95104
+
+select order_id from order_items
+where order_id not in (select order_id from orders)
+
+
+select count(distinct order_id) from order_payments -- 96454
+
+
+select count(distinct seller_id) from sellers -- 3095
+select count(distinct seller_id) from order_items -- 2912
+
+
+select count(distinct product_id) from products -- 32327
+select count(distinct product_id) from order_items -- 31614
+
+select product_id from order_items
+where product_id not in (select product_id from products)
+
+select count(distinct customer_id) from customers -- 99441
+select count(distinct customer_id) from orders -- 96455
+
+select customer_id from customers
+where customer_id not in (select customer_id from orders)
+
+select count(distinct order_id) from order_review_ratings -- 96455
+select count(distinct order_id) from orders -- 96455
+
+select order_id from order_review_ratings
+where order_id not in (select order_id from orders)
+
+select od.order_id,
+od.customer_id,
+od.order_purchase_timestamp,
+od.order_approved_at,
+od.order_delivered_carrier_date,
+od.order_delivered_customer_date,
+od.order_estimated_delivery_date,
+pd.product_id,
+pd.product_category_name,
+cust.customer_city,
+cust.customer_state,
+sl.seller_id,
+sl.seller_city,
+sl.seller_state,
+ot.shipping_limit_datetime,
+ot.shipping_year,
+ot.price,
+ot.freight_value,
+op.payment_sequential,
+op.payment_type,
+op.payment_installments,
+op.payment_value,
+orat.review_id,
+orat.review_score,
+orat.review_creation_date,
+orat.review_answer_timestamp
+from orders as od
+left join order_payments as op on od.order_id = op.order_id
+left join order_items as ot on od.order_id = ot.order_id
+inner join sellers as sl on sl.seller_id = ot.seller_id
+inner join products as pd on pd.product_id = ot.product_id
+inner join customers as cust on cust.customer_id = od.customer_id
+inner join order_review_ratings as orat on orat.order_id = od.order_id 
+
+
